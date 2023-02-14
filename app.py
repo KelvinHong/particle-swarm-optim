@@ -93,6 +93,7 @@ class Swarm():
                 color=color,  angles='xy', scale_units='xy', scale=2, width=0.005)
         plt.plot([p.x for p in self.gbest_list], [p.y for p in self.gbest_list], linestyle="-", color="blue")
         plt.plot(self.gbest.x, self.gbest.y, "go", ms=6)
+        plt.savefig("currentSwarm.png")
         plt.pause(1e-1)
 
     def __str__(self):

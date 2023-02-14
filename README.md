@@ -9,3 +9,5 @@ Run the code below to view animation
 ```
 python app.py
 ```
+
+![Swarm Visualization](./currentSwarm.png)
