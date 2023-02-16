@@ -138,25 +138,29 @@ class AntColony():
                 color = cm(ph_level)
                 plt.plot([spoint[0], epoint[0]], [spoint[1], epoint[1]], color=color, 
                         linestyle = '-', linewidth=5 * ph_level, zorder=0)
+                plt.plot([spoint[0], epoint[0]], [spoint[1], epoint[1]], color=(*(color[:3]), 0.4), 
+                        linestyle = '-', linewidth=10 * ph_level, zorder=0)
         # Plot nodes
-        plt.scatter(self.map.points[:, 0], self.map.points[:, 1], s=50, color="green", zorder=1)
+        plt.scatter(self.map.points[:, 0], self.map.points[:, 1], s=100, color="green", zorder=1)
         if title is not None:
             plt.title(title)
         if not remain:
             plt.pause(1e-1)
         else:
+            plt.savefig("./currentColony.png")
             plt.waitforbuttonpress()
 
 
 # Initialize maps with nodes
 # Distances are the L2 norm on the plane
-num_ant = 100
+num_ant = 20
+phe_q = 1000 / num_ant
 epochs = 100
 points = np.array([
     [-5, 1],
     [-3, 5],
     [-5, -1],
-    [0,0],
+    [-2, 2],
     [2, 1],
     [3, 1],
     [2, -2.5],
@@ -164,7 +168,7 @@ points = np.array([
 ])
 num_points = points.shape[0]
 colony_map = Map(points)
-ac = AntColony(num_ant, colony_map)
+ac = AntColony(num_ant, colony_map, q = phe_q)
 plt.ion()
 plt.show()
 for e in tqdm(range(epochs)):
