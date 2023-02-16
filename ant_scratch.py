@@ -25,7 +25,7 @@ class Ant():
         self.current = self.route[-1]
 
 class AntColony():
-    def __init__(self, num_ant: int, colony_map: Map, rho = 0.5, q = 1, alpha=0.5, 
+    def __init__(self, num_ant: int, colony_map: Map, rho = 0.5, q = 10, alpha=0.5, 
                 beta=2, phe_max = 20):
         # rho is pheromone vaporate rate, q is a constant for calculating
         # pheromone.
@@ -92,13 +92,15 @@ class AntColony():
         for ant in self.ants:
             # Ant Pheromone Contribution initialized as zeros.
             pheromone_contrib = np.zeros((self.map.n, self.map.n))
-            for curr_node, next_node in zip(ant.route, ant.route[1:]):
-                # Will pheromone explode?
-                # Keep pheromone contribution symmetric
-                pheromone_contrib[
-                    [curr_node, next_node], 
-                    [next_node, curr_node]
-                ] = self.q / self.map.dm[curr_node, next_node]
+            ant_travel_total = np.sum(self.map.dm[ant.route[:-1], ant.route[1:]])
+            pheromone_contrib[ant.route[:-1], ant.route[1:]] = \
+                self.q / ant_travel_total
+            ### The code below will lead to kind of greed algorithm
+            # for curr_node, next_node in zip(ant.route, ant.route[1:]):
+            # pheromone_contrib[
+            #     [curr_node, next_node], 
+            #     [next_node, curr_node]
+            # ] = self.q / self.map.dm[curr_node, next_node]
             self.pheromones += pheromone_contrib
 
     def evaluate(self, **kwargs):
@@ -120,8 +122,8 @@ class AntColony():
         else:
             return distances
         
-    def visualize(self):
-        cm = mplcm.get_cmap('hot')
+    def visualize(self, title = None, remain = False):
+        cm = mplcm.get_cmap('hot_r')
         # Visualize nodes and paths based on pheromones density
         plt.clf()
         plt.xlim(-6, 4)
@@ -135,15 +137,21 @@ class AntColony():
                 ph_level = self.pheromones[start, end] / self.phe_max
                 color = cm(ph_level)
                 plt.plot([spoint[0], epoint[0]], [spoint[1], epoint[1]], color=color, 
-                        linestyle = '-', linewidth=1 + 2 * ph_level, zorder=0)
+                        linestyle = '-', linewidth=5 * ph_level, zorder=0)
         # Plot nodes
-        plt.scatter(self.map.points[:, 0], self.map.points[:, 1], s=20, color="green", zorder=1)
-        plt.show()
+        plt.scatter(self.map.points[:, 0], self.map.points[:, 1], s=50, color="green", zorder=1)
+        if title is not None:
+            plt.title(title)
+        if not remain:
+            plt.pause(1e-1)
+        else:
+            plt.waitforbuttonpress()
 
 
 # Initialize maps with nodes
 # Distances are the L2 norm on the plane
 num_ant = 100
+epochs = 100
 points = np.array([
     [-5, 1],
     [-3, 5],
@@ -151,17 +159,22 @@ points = np.array([
     [0,0],
     [2, 1],
     [3, 1],
-    [2, -2],
+    [2, -2.5],
     [3, -3]
 ])
 num_points = points.shape[0]
 colony_map = Map(points)
 ac = AntColony(num_ant, colony_map)
-
-for e in tqdm(range(50)):
+plt.ion()
+plt.show()
+for e in tqdm(range(epochs)):
     ac.generateProb()
     ac.generateSol()
     ac.updatePheromones()
     print(ac.evaluate(min=np.min, mean=np.mean, max=np.max))
     print(ac.current_best_route)
-    ac.visualize()
+    if e == epochs-1:
+        ac.visualize(title = f"Epoch {e+1} (Darker path indicates heavier pheromones,\npress anykey to close)", 
+                    remain = True)
+    else:
+        ac.visualize(title = f"Epoch {e+1} (Darker path indicates heavier pheromones)")
