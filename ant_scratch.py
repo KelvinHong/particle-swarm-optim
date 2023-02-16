@@ -9,6 +9,8 @@ from copy import deepcopy
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import matplotlib.cm as mplcm
+import imageio
+import os
 
 class Map():
     def __init__(self, points):
@@ -124,7 +126,7 @@ class AntColony():
         else:
             return distances
         
-    def visualize(self, title = None, remain = False):
+    def visualize(self, title = None, remain = False, save_as = None):
         cm = mplcm.get_cmap('hot_r')
         # Visualize nodes and paths based on pheromones density
         plt.clf()
@@ -139,55 +141,101 @@ class AntColony():
                 ph_level = self.pheromones[start, end] / self.phe_max
                 color = cm(ph_level)
                 plt.plot([spoint[0], epoint[0]], [spoint[1], epoint[1]], color=color, 
-                        linestyle = '-', linewidth=5 * ph_level, zorder=0)
+                        linestyle = '--', linewidth=5 * ph_level, zorder=0)
                 plt.plot([spoint[0], epoint[0]], [spoint[1], epoint[1]], color=(*(color[:3]), 0.4), 
-                        linestyle = '-', linewidth=10 * ph_level, zorder=0)
+                        linestyle = '--', linewidth=10 * ph_level, zorder=0)
         # Plot nodes
         plt.scatter(self.map.points[:, 0], self.map.points[:, 1], s=200, color="green", zorder=1)
         # Plot number on nodes
         for n in range(self.map.n):
             plt.text(*self.map.points[n], str(n), color="white",
                 horizontalalignment='center', verticalalignment='center',)
+        # Plot current best route
+        cbr_start_ind = self.current_best_route[:]
+        cbr_end_ind = np.concatenate((self.current_best_route[1:], self.current_best_route[:1]))
+        cbr_start = self.map.points[cbr_start_ind]
+        cbr_end = self.map.points[cbr_end_ind]
+        cbr_dir = cbr_end - cbr_start
+        plt.quiver(cbr_start[:, 0], cbr_start[:, 1], cbr_dir[:, 0], cbr_dir[:, 1], 
+            angles='xy', scale_units='xy', scale=1.2, width=0.01,  
+            color="green", alpha=0.6, zorder=2)
         if title is not None:
             plt.title(title)
+        if save_as is not None:
+            plt.savefig(save_as, 
+                transparent = False,  
+                facecolor = 'white'
+            )
         if not remain:
             plt.pause(1e-1)
         else:
             plt.savefig("./currentColony.png")
             plt.waitforbuttonpress()
 
-
-# Initialize maps with nodes
-# Distances are the L2 norm on the plane
-num_ant = 70
-phe_q = 1000 / num_ant
-epochs = 100
-points = np.array([
-    [-5, 1],
-    [-3, 5],
-    [-5, -1],
-    [-2, 2],
-    [2, 0],
-    [3, 1],
-    [2, -2.5],
-    [3, -3],
-    [-1, -1.5],
-    [0,4],
-    [-5.5, 3],
-])
-num_points = points.shape[0]
-colony_map = Map(points)
-ac = AntColony(num_ant, colony_map, q = phe_q)
-plt.ion()
-plt.show()
-for e in tqdm(range(epochs)):
-    ac.generateProb()
-    ac.generateSol()
-    ac.updatePheromones()
-    print(ac.evaluate(min=np.min, mean=np.mean, max=np.max))
-    print("Current best route: ", ac.current_best_route)
-    if e == epochs-1:
-        ac.visualize(title = f"Epoch {e+1} (Darker path indicates heavier pheromones,\npress anykey to close)", 
-                    remain = True)
-    else:
-        ac.visualize(title = f"Epoch {e+1} (Darker path indicates heavier pheromones)")
+if __name__ == "__main__":
+    os.makedirs("./gif/", exist_ok=True)
+    np.random.seed(1)
+    # Initialize maps with nodes
+    # Distances are the L2 norm on the plane
+    num_ant = 70
+    phe_q = 1000 / num_ant
+    epochs = 100
+    # Random map
+    points = np.array([
+        [-5, 1],
+        [-3, 5],
+        [-5, -1],
+        [-2, 2],
+        [2, 0],
+        [3, 1],
+        [2, -2.5],
+        [3, -3],
+        [-1, -1.5],
+        [0,4],
+        [-5.5, 3],
+    ])
+    # Rectangle
+    # points = np.array([
+    #     [3, 3],
+    #     [3, 1],
+    #     [3, -1],
+    #     [3, -3],
+    #     [1, -3],
+    #     [-1, -3],
+    #     [-3, -3],
+    #     [-5, -3],
+    #     [-5, -1],
+    #     [-5, 1],
+    #     [-5, 3],
+    #     [-3, 3],
+    #     [-1, 3],
+    #     [1, 3],
+    # ])
+    num_points = points.shape[0]
+    colony_map = Map(points)
+    ac = AntColony(num_ant, colony_map, q = phe_q)
+    plt.ion()
+    plt.show()
+    for e in tqdm(range(epochs)):
+        img_save_as = f"./gif/frame_{e}.png"
+        ac.generateProb()
+        ac.generateSol()
+        ac.updatePheromones()
+        print(ac.evaluate(min=np.min, mean=np.mean, max=np.max))
+        print("Current best route: ", ac.current_best_route)
+        if e == epochs-1:
+            ac.visualize(title = f"Epoch {e+1} (Darker path indicates heavier pheromones,\npress anykey to close)", 
+                        remain = True,
+                        save_as=img_save_as)
+        else:
+            ac.visualize(title = f"Epoch {e+1} (Darker path indicates heavier pheromones)",
+                        save_as=img_save_as)
+    # Save animation as gif
+    frames = []
+    for e in range(epochs):
+        image = imageio.v2.imread(f'./gif/frame_{e}.png')
+        frames.append(image)
+    imageio.mimsave('./AntColony.gif', # output gif
+                frames,          # array of input frames
+                fps = 5,
+                loop=1)         # optional: frames per second

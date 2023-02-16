@@ -2,6 +2,9 @@ import random
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 from copy import deepcopy
+import imageio
+import os
+import numpy  as np
 
 def clip(bound):
     return lambda x: x if abs(x) <= bound else bound * ((x > 0)*2-1)
@@ -38,7 +41,14 @@ class Swarm():
         self.clip_y = clip(y_bound)
         self.clip_vx = clip(vx_bound)
         self.clip_vy = clip(vy_bound)
-        # Record history global best
+        # Mesh grid for plotting contour plot 
+        gbound_x = self.x_bound + self.vx_bound
+        gbound_y = self.y_bound + self.vy_bound
+        grid_finess = 51
+        self.grid_X, self.grid_Y = np.meshgrid(np.linspace(-gbound_x, gbound_x, grid_finess), 
+                np.linspace(-gbound_y, gbound_y, grid_finess))
+        self.contour_Z = objective(self.grid_X, self.grid_Y)
+        self.ct_level = [0, 0.5, 1, 5, 10, 20, 50, 100, 200, 500, 1000, 2000]
 
     def calGroupBest(self):
         self.scores = [self.objective(p.x, p.y) for p in self.swarm]
@@ -82,24 +92,36 @@ class Swarm():
                     self.gbest = self.swarm[i]
         self.calGroupBest()
 
-    def visualize(self):
+    def visualize(self, title=None, remain=False, save_as = None):
         plt.clf()
+        plt.contour(self.grid_X, self.grid_Y, self.contour_Z, self.ct_level, zorder=-2)
         plt.xlim(-self.x_bound-self.vx_bound, self.x_bound + self.vx_bound)
         plt.ylim(-self.y_bound-self.vy_bound, self.y_bound + self.vy_bound)
         for i in range(self.n):
             color = "red"
-            # plt.plot(self.swarm[i].x, self.swarm[i].y, color=color, marker='o', ms=ms)
             plt.quiver(self.swarm[i].x, self.swarm[i].y, self.swarm[i].vx, self.swarm[i].vy, 
-                color=color,  angles='xy', scale_units='xy', scale=2, width=0.005)
-        plt.plot([p.x for p in self.gbest_list], [p.y for p in self.gbest_list], linestyle="-", color="blue")
-        plt.plot(self.gbest.x, self.gbest.y, "go", ms=6)
-        plt.savefig("currentSwarm.png")
-        plt.pause(1e-1)
+                color=color,  angles='xy', scale_units='xy', scale=2, width=0.005, zorder=-1)
+        plt.plot([p.x for p in self.gbest_list], [p.y for p in self.gbest_list], 
+                    linestyle="-", color="cyan", zorder = 0)
+        plt.plot(self.gbest.x, self.gbest.y, "go", ms=6, zorder=1)
+        if title is not None:
+            plt.title(title)
+        if save_as is not None:
+            plt.savefig(save_as, 
+                transparent = False,  
+                facecolor = 'white'
+            )
+        if not remain:
+            plt.pause(1e-1)
+        else:
+            plt.savefig("./currentSwarm.png")
+            plt.waitforbuttonpress()
 
     def __str__(self):
         return "Swarm information: \n" + "".join([str(p) + "\n" for p in self.swarm])
 
-
+# Design custom objective function that is to be minimized
+# It is better to design so that x and y can be generic numpy arrays.
 def himmelblau(x, y):
     return (x ** 2 + y - 11) ** 2 + (x + y ** 2 - 7) ** 2
 
@@ -110,14 +132,32 @@ def beale(x, y):
     return (1.5-x+x*y)**2 + (2.25-x+x*y**2)**2 \
             + (2.625-x+x*y**3)**2
 
-# objective = himmelblau
-# objective = rosenbrock
-objective = beale
-s1 = Swarm(100, objective, 5, 5, 2, 2, 0.6, 2, 2)
-plt.ion()
-plt.show()
-for e in tqdm(range(100)):
-    s1.step()
-    s1.visualize()
-print(s1.gbest)
-print(s1.bestValue)
+if __name__ == "__main__":
+    os.makedirs("./gif/", exist_ok=True)
+    np.random.seed(11120)
+    epochs = 100
+    objective = himmelblau
+    # objective = rosenbrock
+    # objective = beale
+    s1 = Swarm(10, objective, 5, 5, 2, 2, 0.6, 2, 2)
+    plt.ion()
+    plt.show()
+    for e in tqdm(range(epochs)):
+        s1.step()
+        img_save_as = f"./gif/frame_{e}.png"
+        if e == epochs - 1:
+            s1.visualize(title=f"PSO: Epoch {e+1} (Press anykey to close)", remain=True, 
+                save_as = img_save_as)
+        else:
+            s1.visualize(title=f"PSO: Epoch {e+1}", save_as = img_save_as)
+    # Save animation as gif
+    frames = []
+    for e in range(epochs):
+        image = imageio.v2.imread(f'./gif/frame_{e}.png')
+        frames.append(image)
+    imageio.mimsave('./Swarm.gif', # output gif
+                frames,          # array of input frames
+                fps = 5,
+                loop=1)         # optional: frames per second
+    print(s1.gbest)
+    print(s1.bestValue)

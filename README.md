@@ -12,7 +12,7 @@ Run the code below to view animation
 ```
 python swarm_scratch.py
 ```
-![Swarm Visualization](./currentSwarm.png)
+![Swarm Visualization](./Swarm.gif)
 
 ## Ant Colony Optimization
 This program uses ACO to tackle Travelling Salesman Problem. 
@@ -22,4 +22,4 @@ Number of ants and any other hyperparameters can also be specified.
 python ant_scratch.py
 ```
 
-![Ant Colony Visualization](./currentColony.png)
+![Ant Colony Visualization](./AntColony.gif)
